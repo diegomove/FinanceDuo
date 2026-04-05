@@ -331,6 +331,21 @@ main {
     color: var(--color-charcoal);
 }
 
+.profile-person-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    white-space: normal;
+    line-height: 1.2;
+    min-height: 2.45rem;
+    padding: 0.45rem 0.5rem;
+}
+
+.profile-person-name {
+    overflow-wrap: anywhere;
+}
+
 /* ---- Cards & Panels ---- */
 .panel {
     background: var(--color-warm-white);

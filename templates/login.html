@@ -52,8 +52,9 @@
                             <div class="col-6">
                                 <input type="radio" class="btn-check" name="name" id="name_{{ p.name }}"
                                        value="{{ p.name }}" autocomplete="off" {{ 'checked' if loop.first }}>
-                                <label class="btn btn-outline-primary w-100 text-truncate" for="name_{{ p.name }}">
-                                    <i class="bi bi-person-fill"></i> {{ p.name }}
+                                <label class="btn btn-outline-primary w-100 profile-person-btn" for="name_{{ p.name }}">
+                                    <i class="bi bi-person-fill"></i>
+                                    <span class="profile-person-name">{{ p.name }}</span>
                                 </label>
                             </div>
                             {% endfor %}
