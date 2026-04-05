@@ -41,18 +41,17 @@
         </div>
     </div>
 
-    <div class="row justify-content-center">
-        <div class="col-11 col-sm-8 col-md-5 col-lg-4">
-            <div class="panel">
+    <div class="login-panel-wrap">
+        <div class="panel login-panel">
                 <form method="POST" action="{{ url_for('main.login_post') }}">
                     <div class="mb-3">
                         <label class="form-label" for="name">{{ t.name }}</label>
-                        <div class="row g-2">
+                        <div class="profile-person-options" role="radiogroup" aria-label="{{ t.name }}">
                             {% for p in people %}
-                            <div class="col-6">
+                            <div class="profile-person-option">
                                 <input type="radio" class="btn-check" name="name" id="name_{{ p.name }}"
                                        value="{{ p.name }}" autocomplete="off" {{ 'checked' if loop.first }}>
-                                <label class="btn btn-outline-primary w-100 profile-person-btn" for="name_{{ p.name }}">
+                                <label class="btn btn-outline-primary profile-person-btn" for="name_{{ p.name }}">
                                     <i class="bi bi-person-fill"></i>
                                     <span class="profile-person-name">{{ p.name }}</span>
                                 </label>
@@ -69,7 +68,6 @@
                         <i class="bi bi-box-arrow-in-right"></i> {{ t.enter }}
                     </button>
                 </form>
-            </div>
         </div>
     </div>
 </div>
