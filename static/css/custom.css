@@ -337,16 +337,20 @@ main {
 }
 
 .login-panel {
-    width: fit-content;
-    min-width: 18rem;
-    max-width: 100%;
+    display: inline-block;
+    width: auto;
+    max-width: calc(100vw - 2rem);
+}
+
+.login-panel form {
+    min-width: 17rem;
 }
 
 .profile-person-options {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
+    gap: 1rem;
     width: fit-content;
     max-width: 100%;
     margin: 0 auto;
@@ -354,24 +358,59 @@ main {
 
 .profile-person-option {
     flex: 0 0 auto;
+    min-width: max-content;
 }
 
 .profile-person-btn {
-    display: inline-flex;
+    display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.35rem;
-    white-space: nowrap;
-    line-height: 1.2;
-    min-height: 2.45rem;
-    min-width: 5.8rem;
-    padding: 0.45rem 0.75rem;
+    gap: 0.45rem;
+    padding: 0.15rem;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--color-charcoal);
+    text-align: center;
+}
+
+.profile-person-avatar {
+    width: 4.25rem;
+    height: 4.25rem;
+    border-radius: 999px;
+    border: 2px solid var(--color-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    color: var(--color-accent);
+    background: var(--color-warm-white);
+    transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.profile-person-btn:hover .profile-person-avatar {
+    transform: translateY(-1px);
+    border-color: var(--color-accent-light);
+    box-shadow: var(--shadow-md);
 }
 
 .profile-person-name {
     white-space: nowrap;
-    overflow-wrap: normal;
-    word-break: normal;
+    line-height: 1.15;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--color-charcoal);
+}
+
+.btn-check:checked + .profile-person-btn .profile-person-avatar {
+    background-color: var(--color-accent);
+    border-color: var(--color-accent);
+    color: #fff;
+}
+
+.btn-check:checked + .profile-person-btn .profile-person-name {
+    color: var(--color-accent);
 }
 
 /* ---- Cards & Panels ---- */
@@ -854,6 +893,16 @@ footer {
         min-width: 0;
         width: 100%;
         max-width: 22rem;
+    }
+
+    .profile-person-options {
+        gap: 0.75rem;
+    }
+
+    .profile-person-avatar {
+        width: 3.8rem;
+        height: 3.8rem;
+        font-size: 1.15rem;
     }
 
     .stat-value {

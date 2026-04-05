@@ -51,8 +51,10 @@
                             <div class="profile-person-option">
                                 <input type="radio" class="btn-check" name="name" id="name_{{ p.name }}"
                                        value="{{ p.name }}" autocomplete="off" {{ 'checked' if loop.first }}>
-                                <label class="btn btn-outline-primary profile-person-btn" for="name_{{ p.name }}">
-                                    <i class="bi bi-person-fill"></i>
+                                <label class="profile-person-btn" for="name_{{ p.name }}" title="{{ p.name }}">
+                                    <span class="profile-person-avatar" aria-hidden="true">
+                                        <i class="bi bi-person-fill"></i>
+                                    </span>
                                     <span class="profile-person-name">{{ p.name }}</span>
                                 </label>
                             </div>
