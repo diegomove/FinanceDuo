@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}{{ display_name }} — {{ t.app_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <nav class="breadcrumb-nav">
+            <a href="{{ url_for('month.list_months') }}">{{ t.nav_months }}</a>
+            <span class="separator">/</span>
+            <strong>{{ display_name }}</strong>
+        </nav>
+        <h1 class="page-heading mt-1">{{ display_name }}</h1>
+    </div>
+    <div class="d-flex gap-2">
+        {% if previous and not month.is_closed %}
+        <form method="POST" action="{{ url_for('month.copy_budget', month_id=month.id, source_id=previous.id) }}">
+            <button type="submit" class="btn btn-outline-secondary btn-sm"
+                    title="{{ t.copy_fixed }}">
+                <i class="bi bi-clipboard"></i> {{ t.copy_fixed }}
+            </button>
+        </form>
+        {% endif %}
+        <form method="POST" action="{{ url_for('month.close_month', month_id=month.id) }}">
+            <button type="submit" class="btn btn-outline-{{ 'success' if month.is_closed else 'secondary' }} btn-sm">
+                {% if month.is_closed %}
+                    <i class="bi bi-unlock"></i> {{ t.reopen_month }}
+                {% else %}
+                    <i class="bi bi-lock"></i> {{ t.close_month }}
+                {% endif %}
+            </button>
+        </form>
+    </div>
+</div>
+
+{% if month.is_closed %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> {{ t.month_closed_info }}
+</div>
+{% endif %}
+
+<!-- Action Cards -->
+<div class="row g-3">
+    <div class="col-6 col-md-3">
+        <a href="{{ url_for('budget.plan', month_id=month.id) }}" class="month-card h-100">
+            <div class="text-center py-3">
+                <i class="bi bi-calculator" style="font-size: 2.5rem; color: var(--color-accent);"></i>
+                <h3 class="section-heading mt-3 mb-1">{{ t.budget }}</h3>
+                <p class="text-muted small mb-0">{{ t.budget_desc }}</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-md-3">
+        <a href="{{ url_for('expenses.list_expenses', month_id=month.id) }}" class="month-card h-100">
+            <div class="text-center py-3">
+                <i class="bi bi-receipt" style="font-size: 2.5rem; color: var(--color-sage);"></i>
+                <h3 class="section-heading mt-3 mb-1">{{ t.expenses }}</h3>
+                <p class="text-muted small mb-0">{{ t.expenses_desc }}</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-md-3">
+        <a href="{{ url_for('expenses.balance', month_id=month.id) }}" class="month-card h-100">
+            <div class="text-center py-3">
+                <i class="bi bi-arrow-left-right" style="font-size: 2.5rem; color: var(--color-stone);"></i>
+                <h3 class="section-heading mt-3 mb-1">{{ t.balance }}</h3>
+                <p class="text-muted small mb-0">{{ t.balance_desc }}</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-md-3">
+        <a href="{{ url_for('dashboard.comparison', month_id=month.id) }}" class="month-card h-100">
+            <div class="text-center py-3">
+                <i class="bi bi-bar-chart-line" style="font-size: 2.5rem; color: var(--color-accent-light);"></i>
+                <h3 class="section-heading mt-3 mb-1">{{ t.summary }}</h3>
+                <p class="text-muted small mb-0">{{ t.summary_desc }}</p>
+            </div>
+        </a>
+    </div>
+</div>
+{% endblock %}

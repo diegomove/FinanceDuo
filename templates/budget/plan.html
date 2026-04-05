@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t.budget_title }} — {{ display_name }}{% endblock %}
+
+{% block content %}
+<nav class="breadcrumb-nav">
+    <a href="{{ url_for('month.list_months') }}">{{ t.nav_months }}</a>
+    <span class="separator">/</span>
+    <a href="{{ url_for('month.overview', month_id=month.id) }}">{{ display_name }}</a>
+    <span class="separator">/</span>
+    <strong>{{ t.budget_title }}</strong>
+</nav>
+<div class="d-flex justify-content-between align-items-center mt-1 mb-4">
+    <h1 class="page-heading">{{ t.budget_title }}</h1>
+    <a href="{{ url_for('budget.manage_categories') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-tags"></i> {{ t.manage_categories }}
+    </a>
+</div>
+
+{% if month.is_closed %}
+<div class="alert alert-info">
+    <i class="bi bi-lock-fill"></i> {{ t.month_closed_info }}
+</div>
+{% endif %}
+
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-4">
+        <div class="stat-card">
+            <div class="stat-value" id="totalIncome">{{ "%.2f"|format(income_total) }}</div>
+            <div class="stat-label">{{ t.total_income }}</div>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="stat-card">
+            <div class="stat-value" id="totalBudgeted">{{ "%.2f"|format(expected_total) }}</div>
+            <div class="stat-label">{{ t.total_budgeted }}</div>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="stat-card">
+            <div class="stat-value {{ 'text-under' if surplus >= 0 else 'text-over' }}" id="surplus">
+                {{ "%.2f"|format(surplus) }}
+            </div>
+            <div class="stat-label">{{ t.surplus }}</div>
+        </div>
+    </div>
+</div>
+
+<form method="POST" action="{{ url_for('budget.save_plan', month_id=month.id) }}" id="budgetForm">
+    <!-- Income Section -->
+    <div class="panel mb-4">
+        <div class="panel-header">
+            <h2 class="section-heading mb-0"><i class="bi bi-cash-stack"></i> {{ t.income_section }}</h2>
+        </div>
+        {% for person in people %}
+        <div class="row g-3 mb-3 align-items-end">
+            <div class="col-12 col-sm-3">
+                <label class="form-label">{{ person.name }}</label>
+            </div>
+            <div class="col-6 col-sm-4">
+                <label class="form-label small text-muted">{{ t.amount }}</label>
+                <div class="input-group">
+                    <span class="input-group-text">&euro;</span>
+                    <input type="number" class="form-control income-input" step="0.01" min="0"
+                           name="income_{{ person.id }}"
+                           value="{{ '%.2f'|format(income_map.get(person.id, {}).get('amount', 0)) if person.id in income_map else '' }}"
+                           placeholder="0.00"
+                           {{ 'disabled' if month.is_closed }}>
+                </div>
+            </div>
+            <div class="col-6 col-sm-5">
+                <label class="form-label small text-muted">{{ t.description }}</label>
+                <input type="text" class="form-control"
+                       name="income_desc_{{ person.id }}"
+                       value="{{ income_map.get(person.id, {}).get('description', '') or '' }}"
+                       placeholder="{{ t.optional }}"
+                       {{ 'disabled' if month.is_closed }}>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Expected Expenses by Type -->
+    {% set type_labels = {'fixed': t.fixed_expenses, 'variable': t.variable_expenses, 'extra': t.extras} %}
+    {% for type_name, type_icon in [('fixed', 'bi-pin-angle'), ('variable', 'bi-graph-up'), ('extra', 'bi-lightning')] %}
+    <div class="panel mb-4">
+        <div class="panel-header">
+            <h2 class="section-heading mb-0">
+                <i class="bi {{ type_icon }}"></i> {{ type_labels[type_name] }}
+            </h2>
+            <span class="badge-type badge-{{ type_name }}">{{ type_name|upper }}</span>
+        </div>
+
+        {% if categories.get(type_name, []) %}
+        <div class="row g-2 mb-2 d-none d-sm-flex">
+            <div class="col-sm-2"><small class="text-muted fw-bold">{{ t.category }}</small></div>
+            <div class="col-sm-3"><small class="text-muted fw-bold">{{ t.amount }}</small></div>
+            <div class="col-sm-3"><small class="text-muted fw-bold">{{ t.who_pays }}</small></div>
+            <div class="col-sm-4"><small class="text-muted fw-bold">{{ t.notes }}</small></div>
+        </div>
+        {% for cat in categories[type_name] %}
+        {% set saved = expected_map.get(cat.id, {}) %}
+        <div class="row g-2 mb-3 align-items-end">
+            <div class="col-12 col-sm-2">
+                <label class="form-label">{{ cat.name }}</label>
+            </div>
+            <div class="col-4 col-sm-3">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text">&euro;</span>
+                    <input type="number" class="form-control expense-input" step="0.01" min="0"
+                           name="expense_{{ cat.id }}"
+                           value="{{ '%.2f'|format(saved.get('amount', 0)) if saved else '' }}"
+                           placeholder="0.00"
+                           {{ 'disabled' if month.is_closed }}>
+                </div>
+            </div>
+            <div class="col-4 col-sm-3">
+                <select class="form-select form-select-sm" name="expense_paidby_{{ cat.id }}"
+                        {{ 'disabled' if month.is_closed }}>
+                    <option value="split" {{ 'selected' if saved.get('paid_by', 'split') == 'split' }}>{{ t.shared }}</option>
+                    {% for p in people %}
+                    <option value="person{{ loop.index }}" {{ 'selected' if saved.get('paid_by') == 'person' ~ loop.index }}>{{ p.name }}</option>
+                    {% endfor %}
+                    {% for p in people %}
+                    <option value="personal_person{{ loop.index }}" {{ 'selected' if saved.get('paid_by') == 'personal_person' ~ loop.index }}>{{ t.personal }} {{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-4 col-sm-4">
+                <input type="text" class="form-control form-control-sm"
+                       name="expense_notes_{{ cat.id }}"
+                       value="{{ saved.get('notes', '') or '' }}"
+                       placeholder="{{ t.notes }}"
+                       {{ 'disabled' if month.is_closed }}>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <p class="text-muted small mb-0">{{ t.no_categories_type.format(type_labels[type_name]|lower) }}
+            <a href="{{ url_for('budget.manage_categories') }}">{{ t.add_one }}</a>
+        </p>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    {% if not month.is_closed %}
+    <div class="d-flex justify-content-end">
+        <button type="submit" class="btn btn-primary btn-lg">
+            <i class="bi bi-check-lg"></i> {{ t.save_budget }}
+        </button>
+    </div>
+    {% endif %}
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const form = document.getElementById("budgetForm");
+    if (!form) return;
+
+    const fmt = (n) => n.toFixed(2);
+
+    function recalc() {
+        let income = 0;
+        form.querySelectorAll(".income-input").forEach(el => {
+            income += parseFloat(el.value) || 0;
+        });
+
+        let expenses = 0;
+        form.querySelectorAll(".expense-input").forEach(el => {
+            expenses += parseFloat(el.value) || 0;
+        });
+
+        const surplus = income - expenses;
+
+        document.getElementById("totalIncome").textContent = fmt(income);
+        document.getElementById("totalBudgeted").textContent = fmt(expenses);
+
+        const surplusEl = document.getElementById("surplus");
+        surplusEl.textContent = fmt(surplus);
+        surplusEl.className = "stat-value " + (surplus >= 0 ? "text-under" : "text-over");
+    }
+
+    form.querySelectorAll(".income-input, .expense-input").forEach(el => {
+        el.addEventListener("input", recalc);
+    });
+});
+</script>
+{% endblock %}

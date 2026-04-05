@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t.months_title }} — {{ t.app_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="page-heading">{{ t.months_title }}</h1>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newMonthModal">
+        <i class="bi bi-plus-lg"></i> {{ t.new_month }}
+    </button>
+</div>
+
+<!-- Bank Balance Overview -->
+{% set has_balances = people and person_balances and (person_balances.values()|selectattr('initial', 'gt', 0)|list or person_balances.values()|selectattr('total_income', 'gt', 0)|list) %}
+{% if has_balances %}
+<div class="row g-3 mb-4">
+    {% for p in people %}
+    {% set bal = person_balances.get(p.id, {}) %}
+    <div class="col-12 col-sm-6">
+        <div class="stat-card">
+            <div class="stat-label mb-1"><i class="bi bi-person-fill"></i> {{ p.name }}</div>
+            <div class="stat-value {{ 'text-under' if bal.balance >= 0 else 'text-over' }}">
+                {{ "%.2f"|format(bal.balance) }} &euro;
+            </div>
+            <small class="text-muted">
+                {{ t.initial_label }} {{ "%.2f"|format(bal.initial) }}
+                + {{ t.income_label }} {{ "%.2f"|format(bal.total_income) }}
+                − {{ t.paid_label }} {{ "%.2f"|format(bal.total_paid) }}
+            </small>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if months %}
+<div class="row g-3">
+    {% for m in months %}
+    {% set s = summaries.get(m.id, {}) %}
+    <div class="col-12 col-sm-6 col-lg-4">
+        <a href="{{ url_for('month.overview', month_id=m.id) }}"
+           class="month-card {{ 'is-closed' if m.is_closed }}">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="month-name">{{ get_display_name(m) }}</div>
+                    <small class="text-muted">
+                        {% if m.is_closed %}
+                            <i class="bi bi-lock-fill"></i> {{ t.closed }}
+                        {% else %}
+                            <i class="bi bi-unlock"></i> {{ t.open }}
+                        {% endif %}
+                    </small>
+                </div>
+                <i class="bi bi-chevron-right text-muted"></i>
+            </div>
+            {% if s.get('actual', 0) > 0 or s.get('budgeted', 0) > 0 %}
+            <div class="mt-2 pt-2" style="border-top: 1px solid var(--color-border);">
+                <div class="d-flex justify-content-between" style="font-size: 0.8rem;">
+                    <span class="text-muted">{{ t.spent }}: <strong>{{ "%.0f"|format(s.actual) }} &euro;</strong></span>
+                    {% if s.budgeted > 0 %}
+                    <span class="{{ 'text-over' if s.budget_pct > 100 else 'text-under' }}">
+                        {{ "%.0f"|format(s.budget_pct) }}% {{ t.of_budget }}
+                    </span>
+                    {% endif %}
+                </div>
+                {% if s.budgeted > 0 %}
+                <div class="progress mt-1" style="height: 4px; border-radius: 2px; background: var(--color-sand);">
+                    <div class="progress-bar" style="width: {{ [s.budget_pct, 100]|min }}%;
+                         background: {{ 'var(--color-red-soft)' if s.budget_pct > 100 else 'var(--color-sage)' if s.budget_pct <= 80 else 'var(--color-accent)' }};
+                         border-radius: 2px;"></div>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </a>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="panel empty-state">
+    <span class="empty-state-icon"><i class="bi bi-calendar-plus"></i></span>
+    <p class="empty-state-text">{{ t.no_months_yet }}</p>
+</div>
+{% endif %}
+
+<!-- New Month Modal -->
+<div class="modal fade" id="newMonthModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+            <form method="POST" action="{{ url_for('month.create_month') }}">
+                <div class="modal-header" style="border-color: var(--color-border);">
+                    <h5 class="modal-title section-heading">{{ t.new_month }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-7">
+                            <label class="form-label" for="month">{{ t.month }}</label>
+                            <select class="form-select" name="month" id="month" required>
+                                {% for i in range(1, 13) %}
+                                <option value="{{ i }}" {{ 'selected' if i == current_month }}>
+                                    {{ MONTH_NAMES_I18N[i] }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-5">
+                            <label class="form-label" for="year">{{ t.year }}</label>
+                            <input type="number" class="form-control" name="year" id="year"
+                                   value="{{ current_year }}" min="2020" max="2099" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-color: var(--color-border);">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ t.cancel }}</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-plus-lg"></i> {{ t.create }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

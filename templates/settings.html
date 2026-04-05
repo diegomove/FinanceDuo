@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t.settings_title }} — {{ t.app_name }}{% endblock %}
+
+{% block content %}
+<nav class="breadcrumb-nav">
+    <a href="{{ url_for('month.list_months') }}">{{ t.nav_months }}</a>
+    <span class="separator">/</span>
+    <strong>{{ t.settings_title }}</strong>
+</nav>
+<h1 class="page-heading mt-1 mb-4">{{ t.settings_title }}</h1>
+
+<!-- Initial Balance -->
+<div class="panel mb-4">
+    <div class="panel-header">
+        <h2 class="section-heading mb-0"><i class="bi bi-bank"></i> {{ t.initial_balance_title }}</h2>
+    </div>
+    <p class="text-muted small mb-3">{{ t.initial_balance_desc }}</p>
+    <form method="POST" action="{{ url_for('main.save_initial_balance') }}">
+        {% for person in people %}
+        <div class="row g-3 mb-3 align-items-end">
+            <div class="col-4 col-sm-3">
+                <label class="form-label">{{ person.name }}</label>
+            </div>
+            <div class="col-8 col-sm-5">
+                <div class="input-group">
+                    <span class="input-group-text">&euro;</span>
+                    <input type="number" class="form-control" step="0.01"
+                           name="balance_{{ person.id }}"
+                           value="{{ '%.2f'|format(balances.get(person.id, 0)) }}"
+                           placeholder="0.00">
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg"></i> {{ t.save }}
+        </button>
+    </form>
+</div>
+
+<!-- Change Password -->
+<div class="panel mb-4">
+    <div class="panel-header">
+        <h2 class="section-heading mb-0"><i class="bi bi-shield-lock"></i> {{ t.change_password_title }}</h2>
+    </div>
+    <p class="text-muted small mb-3">{{ t.change_password_desc }}</p>
+    <form method="POST" action="{{ url_for('main.change_password') }}">
+        <div class="row g-3 mb-3">
+            <div class="col-12 col-sm-6">
+                <label class="form-label">{{ t.current_password }}</label>
+                <input type="password" class="form-control" name="current_password" required>
+            </div>
+        </div>
+        <div class="row g-3 mb-3">
+            <div class="col-12 col-sm-6">
+                <label class="form-label">{{ t.new_password }}</label>
+                <input type="password" class="form-control" name="new_password" required minlength="8">
+            </div>
+            <div class="col-12 col-sm-6">
+                <label class="form-label">{{ t.confirm_password }}</label>
+                <input type="password" class="form-control" name="confirm_password" required minlength="8">
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg"></i> {{ t.change_password }}
+        </button>
+    </form>
+</div>
+{% endblock %}

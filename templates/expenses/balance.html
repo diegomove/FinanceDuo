@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t.balance_title }} — {{ display_name }}{% endblock %}
+
+{% block content %}
+<nav class="breadcrumb-nav">
+    <a href="{{ url_for('month.list_months') }}">{{ t.nav_months }}</a>
+    <span class="separator">/</span>
+    <a href="{{ url_for('month.overview', month_id=month.id) }}">{{ display_name }}</a>
+    <span class="separator">/</span>
+    <a href="{{ url_for('expenses.list_expenses', month_id=month.id) }}">{{ t.expenses_title }}</a>
+    <span class="separator">/</span>
+    <strong>{{ t.balance_title }}</strong>
+</nav>
+<h1 class="page-heading mt-1 mb-4">{{ t.balance_title }}</h1>
+
+<!-- Net Balance (shared only) -->
+<div class="panel text-center mb-4 py-4">
+    {% if balance.net_amount == 0 %}
+    <div class="stat-value text-under"><i class="bi bi-check-circle"></i></div>
+    <div class="section-heading mt-2">{{ t.all_square }}</div>
+    <p class="text-muted">{{ t.no_debts }}</p>
+    {% else %}
+    <div class="stat-value {{ 'text-over' if balance.debtor_id == 1 else 'text-under' }}">
+        {{ "%.2f"|format(balance.net_amount) }} &euro;
+    </div>
+    <div class="section-heading mt-2">{{ balance.net_description }}</div>
+    {% if remaining != balance.net_amount %}
+    <div class="mt-2">
+        {% if remaining <= 0 %}
+        <span class="badge bg-success"><i class="bi bi-check-circle"></i> {{ t.settled }}</span>
+        {% else %}
+        <span class="text-muted">{{ t.pending }}: <strong class="{{ 'text-over' if balance.debtor_id == 1 else 'text-under' }}">{{ "%.2f"|format(remaining) }} &euro;</strong></span>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% endif %}
+</div>
+
+<!-- Shared Expenses Breakdown -->
+<h2 class="section-heading mb-3"><i class="bi bi-people"></i> {{ t.shared_expenses }}</h2>
+<div class="row g-3 mb-4">
+    <div class="col-6">
+        <div class="stat-card">
+            <div class="stat-value">{{ "%.2f"|format(balance.person1_paid) }} &euro;</div>
+            <div class="stat-label">{{ t.person_paid.format(balance.person1_name) }}</div>
+        </div>
+    </div>
+    <div class="col-6">
+        <div class="stat-card">
+            <div class="stat-value">{{ "%.2f"|format(balance.person2_paid) }} &euro;</div>
+            <div class="stat-label">{{ t.person_paid.format(balance.person2_name) }}</div>
+        </div>
+    </div>
+    <div class="col-6">
+        <div class="stat-card">
+            <div class="stat-value">{{ "%.2f"|format(balance.person1_should_pay) }} &euro;</div>
+            <div class="stat-label">{{ t.person_share.format(balance.person1_name) }}</div>
+        </div>
+    </div>
+    <div class="col-6">
+        <div class="stat-card">
+            <div class="stat-value">{{ "%.2f"|format(balance.person2_should_pay) }} &euro;</div>
+            <div class="stat-label">{{ t.person_share.format(balance.person2_name) }}</div>
+        </div>
+    </div>
+    <div class="col-12">
+        <div class="stat-card">
+            <div class="stat-value">{{ "%.2f"|format(balance.total_shared) }} &euro;</div>
+            <div class="stat-label">{{ t.total_shared }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Personal Expenses -->
+{% if balance.person1_personal > 0 or balance.person2_personal > 0 %}
+<h2 class="section-heading mb-3"><i class="bi bi-person"></i> {{ t.personal_expenses }}</h2>
+<div class="row g-3 mb-4">
+    <div class="col-6">
+        <div class="stat-card">
+            <div class="stat-value">{{ "%.2f"|format(balance.person1_personal) }} &euro;</div>
+            <div class="stat-label">{{ t.personal_person.format(balance.person1_name) }}</div>
+        </div>
+    </div>
+    <div class="col-6">
+        <div class="stat-card">
+            <div class="stat-value">{{ "%.2f"|format(balance.person2_personal) }} &euro;</div>
+            <div class="stat-label">{{ t.personal_person.format(balance.person2_name) }}</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Grand Total -->
+<div class="stat-card mb-4">
+    <div class="stat-value">{{ "%.2f"|format(balance.total_all) }} &euro;</div>
+    <div class="stat-label">{{ t.total_all_expenses }}</div>
+</div>
+
+<!-- Settlements -->
+<h2 class="section-heading mb-3"><i class="bi bi-cash-coin"></i> {{ t.settlements_title }}</h2>
+
+{% if not month.is_closed and balance.net_amount > 0 %}
+<div class="panel mb-3">
+    <form method="POST" action="{{ url_for('expenses.add_settlement', month_id=month.id) }}" class="row g-2 align-items-end">
+        <div class="col-6 col-md-2">
+            <label class="form-label small">{{ t.amount }} (&euro;)</label>
+            <input type="number" class="form-control form-control-sm" name="amount"
+                   step="0.01" min="0.01" required placeholder="0.00"
+                   value="{{ '%.2f'|format(remaining) if remaining > 0 else '' }}">
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label small">{{ t.who_pays_settlement }}</label>
+            <select class="form-select form-select-sm" name="paid_by" required>
+                {% for p in people %}
+                <option value="{{ p.id }}">{{ p.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label small">{{ t.to_whom }}</label>
+            <select class="form-select form-select-sm" name="paid_to" required>
+                {% for p in people %}
+                <option value="{{ p.id }}" {{ 'selected' if loop.last }}>{{ p.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label small">{{ t.date }}</label>
+            <input type="date" class="form-control form-control-sm" name="date" value="{{ today }}" required>
+        </div>
+        <div class="col-8 col-md-2">
+            <label class="form-label small">{{ t.description }}</label>
+            <input type="text" class="form-control form-control-sm" name="description" placeholder="{{ t.optional }}">
+        </div>
+        <div class="col-4 col-md-2">
+            <button type="submit" class="btn btn-primary btn-sm w-100">
+                <i class="bi bi-plus-lg"></i> {{ t.register }}
+            </button>
+        </div>
+    </form>
+</div>
+{% endif %}
+
+{% if settlements %}
+<div class="panel">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>{{ t.date }}</th>
+                    <th>{{ t.from }}</th>
+                    <th>{{ t.to }}</th>
+                    <th>{{ t.description }}</th>
+                    <th class="text-end">{{ t.amount }}</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in settlements %}
+                <tr>
+                    <td class="text-nowrap">{{ s.date }}</td>
+                    <td>{{ s.paid_by_name }}</td>
+                    <td>{{ s.paid_to_name }}</td>
+                    <td>{{ s.description or '—' }}</td>
+                    <td class="text-end fw-bold text-under">{{ "%.2f"|format(s.amount) }} &euro;</td>
+                    <td class="text-end">
+                        {% if not month.is_closed %}
+                        <form method="POST" class="d-inline"
+                              action="{{ url_for('expenses.remove_settlement', month_id=month.id, settlement_id=s.id) }}"
+                              onsubmit="return confirm('{{ t.confirm_delete_settle }}')">
+                            <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-1">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% elif not month.is_closed and balance.net_amount == 0 %}
+<p class="text-muted small">{{ t.no_settlements_needed }}</p>
+{% endif %}
+{% endblock %}

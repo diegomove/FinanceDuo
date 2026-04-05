@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t.summary_title }} — {{ display_name }}{% endblock %}
+
+{% block head_extra %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+{% endblock %}
+
+{% block content %}
+<nav class="breadcrumb-nav">
+    <a href="{{ url_for('month.list_months') }}">{{ t.nav_months }}</a>
+    <span class="separator">/</span>
+    <a href="{{ url_for('month.overview', month_id=month.id) }}">{{ display_name }}</a>
+    <span class="separator">/</span>
+    <strong>{{ t.summary_title }}</strong>
+</nav>
+<h1 class="page-heading mt-1 mb-4">{{ t.summary_title }}</h1>
+
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
+    {% if initial_balance > 0 %}
+    <div class="col-6 col-md-2">
+        <div class="stat-card">
+            <div class="stat-value">{{ "%.2f"|format(initial_balance) }}</div>
+            <div class="stat-label">{{ t.initial_balance_card }}</div>
+        </div>
+    </div>
+    {% endif %}
+    <div class="col-6 col-md-{{ '2' if initial_balance > 0 else '3' }}">
+        <div class="stat-card">
+            <div class="stat-value">{{ "%.2f"|format(income_total) }}</div>
+            <div class="stat-label">{{ t.income_card }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-{{ '2' if initial_balance > 0 else '3' }}">
+        <div class="stat-card">
+            <div class="stat-value">{{ "%.2f"|format(expected_total) }}</div>
+            <div class="stat-label">{{ t.budgeted_card }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-{{ '2' if initial_balance > 0 else '3' }}">
+        <div class="stat-card">
+            <div class="stat-value {{ 'text-over' if actual_total > expected_total else 'text-under' }}">
+                {{ "%.2f"|format(actual_total) }}
+            </div>
+            <div class="stat-label">{{ t.actual_spent }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-{{ '2' if initial_balance > 0 else '3' }}">
+        <div class="stat-card">
+            <div class="stat-value {{ 'text-under' if savings >= 0 else 'text-over' }}">
+                {{ "%.2f"|format(savings) }}
+            </div>
+            <div class="stat-label">{{ t.net_savings }}</div>
+        </div>
+    </div>
+    {% if initial_balance > 0 %}
+    <div class="col-12 col-md-2">
+        <div class="stat-card">
+            <div class="stat-value {{ 'text-under' if (initial_balance + savings) >= 0 else 'text-over' }}">
+                {{ "%.2f"|format(initial_balance + savings) }}
+            </div>
+            <div class="stat-label">{{ t.current_balance }}</div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Budget Health Bar -->
+{% if expected_total > 0 %}
+<div class="panel mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="section-heading">{{ t.budget_health }}</span>
+        <span class="fw-bold {{ 'text-over' if budget_used_pct > 100 else 'text-under' }}">
+            {{ "%.0f"|format(budget_used_pct) }}% {{ t.spent_pct }}
+        </span>
+    </div>
+    <div class="progress" style="height: 12px; border-radius: var(--radius-sm); background: var(--color-sand);">
+        <div class="progress-bar"
+             role="progressbar"
+             style="width: {{ [budget_used_pct, 100]|min }}%;
+                    background: {{ 'var(--color-red-soft)' if budget_used_pct > 100 else 'var(--color-sage)' if budget_used_pct <= 80 else 'var(--color-terracotta)' }};
+                    border-radius: var(--radius-sm);">
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Balance Card -->
+<div class="panel mb-4 text-center py-3">
+    {% if balance.net_amount == 0 %}
+    <span class="text-under fw-bold"><i class="bi bi-check-circle"></i> {{ t.all_square }}</span>
+    {% else %}
+    <span class="fw-bold">{{ balance.net_description }}:
+        <span class="{{ 'text-over' if balance.debtor_id == 1 else 'text-under' }}">
+            {{ "%.2f"|format(balance.net_amount) }} &euro;
+        </span>
+    </span>
+    {% endif %}
+</div>
+
+<!-- Charts -->
+<div class="row g-4 mb-4">
+    <div class="col-12 col-lg-7">
+        <div class="panel">
+            <h2 class="section-heading mb-3">{{ t.expected_vs_actual }}</h2>
+            <div style="position: relative; height: 250px;">
+                <canvas id="barChart"
+                        data-label-budgeted="{{ t.chart_budgeted }}"
+                        data-label-actual="{{ t.chart_actual }}"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-lg-5">
+        <div class="panel">
+            <h2 class="section-heading mb-3">{{ t.spending_distribution }}</h2>
+            <div style="position: relative; height: 250px;">
+                <canvas id="pieChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Comparison Table -->
+{% if comparison %}
+<div class="panel">
+    <h2 class="section-heading mb-3">{{ t.detail_by_category }}</h2>
+    <div class="table-responsive">
+        <table class="table mb-0">
+            <thead>
+                <tr>
+                    <th>{{ t.category }}</th>
+                    <th>{{ t.type }}</th>
+                    <th class="text-end">{{ t.budgeted_card }}</th>
+                    <th class="text-end">{{ t.chart_actual }}</th>
+                    <th class="text-end">{{ t.difference }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in comparison %}
+                <tr class="{{ 'bg-over' if item.status == 'over' else 'bg-under' if item.status == 'under' else '' }}">
+                    <td class="fw-bold">{{ item.category_name }}</td>
+                    <td><span class="badge-type badge-{{ item.category_type }}">{{ item.category_type }}</span></td>
+                    <td class="text-end">{{ "%.2f"|format(item.expected) }} &euro;</td>
+                    <td class="text-end">{{ "%.2f"|format(item.actual) }} &euro;</td>
+                    <td class="text-end fw-bold {{ 'text-over' if item.diff > 0 else 'text-under' if item.diff < 0 else '' }}">
+                        {% if item.diff > 0 %}+{% endif %}{{ "%.2f"|format(item.diff) }} &euro;
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr style="border-top: 2px solid var(--color-border);">
+                    <td class="fw-bold" colspan="2">{{ t.total }}</td>
+                    <td class="text-end fw-bold">{{ "%.2f"|format(expected_total) }} &euro;</td>
+                    <td class="text-end fw-bold">{{ "%.2f"|format(actual_total) }} &euro;</td>
+                    <td class="text-end fw-bold {{ 'text-over' if actual_total > expected_total else 'text-under' }}">
+                        {% if actual_total - expected_total > 0 %}+{% endif %}{{ "%.2f"|format(actual_total - expected_total) }} &euro;
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="panel empty-state">
+    <span class="empty-state-icon"><i class="bi bi-bar-chart-line"></i></span>
+    <p class="empty-state-text">{{ t.no_dashboard_data }}</p>
+</div>
+{% endif %}
+
+<script type="application/json" id="chart-data">{{ chart_data | tojson }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+{% endblock %}

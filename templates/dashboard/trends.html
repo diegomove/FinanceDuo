@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t.trends_title }} — {{ t.app_name }}{% endblock %}
+
+{% block head_extra %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('month.list_months') }}" class="text-muted text-decoration-none small">
+    <i class="bi bi-arrow-left"></i> {{ t.back_to_months }}
+</a>
+<h1 class="page-heading mt-1 mb-4">{{ t.trends_title }}</h1>
+
+{% if labels|length < 2 %}
+<div class="panel empty-state">
+    <span class="empty-state-icon"><i class="bi bi-graph-up"></i></span>
+    <p class="empty-state-text">{{ t.need_2_months }}</p>
+</div>
+{% else %}
+
+<!-- Spending Trend -->
+<div class="panel mb-4">
+    <h2 class="section-heading mb-3">{{ t.monthly_spending }}</h2>
+    <div style="position: relative; height: 300px;">
+        <canvas id="trendChart"></canvas>
+    </div>
+</div>
+
+<!-- Savings Trend -->
+<div class="panel mb-4">
+    <h2 class="section-heading mb-3">{{ t.monthly_savings }}</h2>
+    <div style="position: relative; height: 250px;">
+        <canvas id="savingsChart"></canvas>
+    </div>
+</div>
+
+<!-- Summary Table -->
+<div class="panel">
+    <h2 class="section-heading mb-3">{{ t.summary_per_month }}</h2>
+    <div class="table-responsive">
+        <table class="table mb-0">
+            <thead>
+                <tr>
+                    <th>{{ t.month }}</th>
+                    <th class="text-end">{{ t.income_label }}</th>
+                    <th class="text-end">{{ t.budgeted_card }}</th>
+                    <th class="text-end">{{ t.spent }}</th>
+                    <th class="text-end">{{ t.savings }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for i in range(labels|length) %}
+                <tr>
+                    <td class="fw-bold">{{ labels[i] }}</td>
+                    <td class="text-end">{{ "%.2f"|format(income_data[i]) }} &euro;</td>
+                    <td class="text-end">{{ "%.2f"|format(budgeted_data[i]) }} &euro;</td>
+                    <td class="text-end">{{ "%.2f"|format(actual_data[i]) }} &euro;</td>
+                    <td class="text-end fw-bold {{ 'text-under' if savings_data[i] >= 0 else 'text-over' }}">
+                        {{ "%.2f"|format(savings_data[i]) }} &euro;
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<script type="application/json" id="trend-data">{{ chart_data | tojson }}</script>
+<script type="application/json" id="trend-labels">{{ {
+    "income": t.chart_income,
+    "budgeted": t.chart_budgeted,
+    "spent": t.chart_spent,
+    "savings": t.chart_savings
+} | tojson }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const dataEl = document.getElementById("trend-data");
+    if (!dataEl) return;
+    const data = JSON.parse(dataEl.textContent);
+    if (data.labels.length < 2) return;
+
+    const labelsEl = document.getElementById("trend-labels");
+    const labels = labelsEl ? JSON.parse(labelsEl.textContent) : {};
+
+    const fontFamily = "'DM Sans', sans-serif";
+    const stone = "#8a8279";
+    Chart.defaults.font.family = fontFamily;
+    Chart.defaults.color = stone;
+
+    const trendCtx = document.getElementById("trendChart");
+    if (trendCtx) {
+        new Chart(trendCtx, {
+            type: "line",
+            data: {
+                labels: data.labels,
+                datasets: [
+                    {
+                        label: labels.income || "Income",
+                        data: data.income,
+                        borderColor: "#7d9a7e",
+                        backgroundColor: "rgba(125, 154, 126, 0.1)",
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 4,
+                    },
+                    {
+                        label: labels.budgeted || "Budgeted",
+                        data: data.budgeted,
+                        borderColor: "#e6ddd3",
+                        borderDash: [5, 5],
+                        tension: 0.3,
+                        pointRadius: 3,
+                    },
+                    {
+                        label: labels.spent || "Spent",
+                        data: data.actual,
+                        borderColor: "#c4704b",
+                        backgroundColor: "rgba(196, 112, 75, 0.1)",
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 4,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: "top", labels: { usePointStyle: true, padding: 20 } },
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: (v) => v + " \u20ac" },
+                        grid: { color: "rgba(0,0,0,0.05)" },
+                    },
+                    x: { grid: { display: false } },
+                },
+            },
+        });
+    }
+
+    const savingsCtx = document.getElementById("savingsChart");
+    if (savingsCtx) {
+        new Chart(savingsCtx, {
+            type: "bar",
+            data: {
+                labels: data.labels,
+                datasets: [{
+                    label: labels.savings || "Savings",
+                    data: data.savings,
+                    backgroundColor: data.savings.map(v => v >= 0 ? "rgba(125, 154, 126, 0.7)" : "rgba(196, 92, 92, 0.7)"),
+                    borderRadius: 4,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        ticks: { callback: (v) => v + " \u20ac" },
+                        grid: { color: "rgba(0,0,0,0.05)" },
+                    },
+                    x: { grid: { display: false } },
+                },
+            },
+        });
+    }
+});
+</script>
+{% endblock %}

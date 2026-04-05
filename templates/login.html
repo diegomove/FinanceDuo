@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t.enter }} — {{ t.app_name }}{% endblock %}
+
+{% block content %}
+<div class="profile-select-wrapper">
+    <div class="text-center mb-5">
+        <h1 class="display-heading">{{ t.app_name }}</h1>
+        <p class="lead text-muted">{{ t.login_subtitle }}</p>
+    </div>
+
+    <div class="d-flex justify-content-center gap-2 mb-4">
+        <!-- Language Switcher -->
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="bi bi-translate"></i> {{ LANGUAGES.get(lang, 'CA') }}
+            </button>
+            <ul class="dropdown-menu">
+                {% for code, label in LANGUAGES.items() %}
+                <li>
+                    <form method="POST" action="{{ url_for('main.set_language') }}">
+                        <input type="hidden" name="lang" value="{{ code }}">
+                        <button type="submit" class="dropdown-item {{ 'active' if lang == code }}">{{ label }}</button>
+                    </form>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        <!-- Theme Switcher -->
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="bi bi-palette"></i> {{ t.nav_theme }}
+            </button>
+            <ul class="dropdown-menu theme-menu">
+                <li><button class="dropdown-item theme-option" data-theme="warm"><span class="theme-swatch" style="background:#c4704b;"></span> {{ t.theme_warm }}</button></li>
+                <li><button class="dropdown-item theme-option" data-theme="dark"><span class="theme-swatch" style="background:#1a1a2e;"></span> {{ t.theme_dark }}</button></li>
+                <li><button class="dropdown-item theme-option" data-theme="rose"><span class="theme-swatch" style="background:#c94c6e;"></span> {{ t.theme_rose }}</button></li>
+                <li><button class="dropdown-item theme-option" data-theme="forest"><span class="theme-swatch" style="background:#3a7a4a;"></span> {{ t.theme_forest }}</button></li>
+                <li><button class="dropdown-item theme-option" data-theme="ocean"><span class="theme-swatch" style="background:#2e7d9e;"></span> {{ t.theme_ocean }}</button></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-11 col-sm-8 col-md-5 col-lg-4">
+            <div class="panel">
+                <form method="POST" action="{{ url_for('main.login_post') }}">
+                    <div class="mb-3">
+                        <label class="form-label" for="name">{{ t.name }}</label>
+                        <div class="row g-2">
+                            {% for p in people %}
+                            <div class="col-6">
+                                <input type="radio" class="btn-check" name="name" id="name_{{ p.name }}"
+                                       value="{{ p.name }}" autocomplete="off" {{ 'checked' if loop.first }}>
+                                <label class="btn btn-outline-primary w-100 text-truncate" for="name_{{ p.name }}">
+                                    <i class="bi bi-person-fill"></i> {{ p.name }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label" for="password">{{ t.password }}</label>
+                        <input type="password" class="form-control" id="password" name="password"
+                               required autofocus placeholder="{{ t.password_placeholder }}">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-box-arrow-in-right"></i> {{ t.enter }}
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,407 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t.expenses_title }} — {{ display_name }}{% endblock %}
+
+{% block content %}
+<nav class="breadcrumb-nav">
+    <a href="{{ url_for('month.list_months') }}">{{ t.nav_months }}</a>
+    <span class="separator">/</span>
+    <a href="{{ url_for('month.overview', month_id=month.id) }}">{{ display_name }}</a>
+    <span class="separator">/</span>
+    <strong>{{ t.expenses_title }}</strong>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mt-1 mb-4">
+    <h1 class="page-heading">{{ t.expenses_title }}</h1>
+    <div class="d-flex gap-2">
+        {% if expenses %}
+        <a href="{{ url_for('expenses.export_csv', month_id=month.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-download"></i> CSV
+        </a>
+        {% endif %}
+        <a href="{{ url_for('expenses.balance', month_id=month.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left-right"></i> {{ t.balance }}
+        </a>
+        {% if not month.is_closed %}
+        <a href="{{ url_for('expenses.add_expense', month_id=month.id) }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> {{ t.add_expense }}
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Total -->
+<div class="stat-card mb-4 d-inline-block px-4">
+    <div class="stat-value">{{ "%.2f"|format(total) }} &euro;</div>
+    <div class="stat-label">{{ t.total_spent }}</div>
+</div>
+
+<!-- Budget Alerts -->
+{% if budget_alerts %}
+<div class="mb-4">
+    {% for alert in budget_alerts %}
+    <div class="alert alert-{{ alert.level }} py-2 mb-2" style="font-size: 0.85rem;">
+        <i class="bi bi-{{ 'exclamation-triangle' if alert.level == 'danger' else 'exclamation-circle' }}"></i>
+        {{ alert.msg }}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Quick Add -->
+{% if not month.is_closed %}
+<div class="panel mb-4">
+    <div class="d-flex align-items-center mb-0" data-bs-toggle="collapse" data-bs-target="#quickAdd"
+         role="button" style="cursor: pointer;">
+        <i class="bi bi-lightning me-2" style="color: var(--color-accent);"></i>
+        <span class="section-heading mb-0" style="font-size: 1rem;">{{ t.quick_add }}</span>
+        <i class="bi bi-chevron-down ms-auto text-muted"></i>
+    </div>
+    <div class="collapse" id="quickAdd">
+        <form method="POST" action="{{ url_for('expenses.add_expense', month_id=month.id) }}" class="mt-3">
+            <div class="row g-2 align-items-end">
+                <div class="col-6 col-md-2">
+                    <label class="form-label small">{{ t.amount }} (&euro;)</label>
+                    <input type="number" class="form-control form-control-sm" name="amount"
+                           step="0.01" min="0.01" required placeholder="0.00">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small">{{ t.category }}</label>
+                    <select class="form-select form-select-sm" name="category_id" required>
+                        <option value="">—</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}">{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small">{{ t.paid_by }}</label>
+                    <select class="form-select form-select-sm" name="paid_by" required>
+                        {% for p in people %}
+                        <option value="{{ p.id }}" {{ 'selected' if session.get('person_id') == p.id }}>{{ p.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small">{{ t.date }}</label>
+                    <input type="date" class="form-control form-control-sm" name="date" value="{{ today }}" required>
+                </div>
+                <div class="col-8 col-md-2">
+                    <label class="form-label small">{{ t.description }}</label>
+                    <input type="text" class="form-control form-control-sm" name="description" placeholder="{{ t.optional }}">
+                </div>
+                <input type="hidden" name="split_mode" value="50/50">
+                <input type="hidden" name="custom_ratio_person1" value="50">
+                <div class="col-4 col-md-2">
+                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                        <i class="bi bi-plus-lg"></i> {{ t.add }}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- Filters -->
+<div class="panel mb-4">
+    <form method="GET" class="row g-3 align-items-end">
+        <div class="col-5 col-md-4">
+            <label class="form-label small">{{ t.category }}</label>
+            <select class="form-select form-select-sm" name="category" onchange="this.form.submit()">
+                <option value="">{{ t.all_categories }}</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}" {{ 'selected' if category_filter == cat.id }}>{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-5 col-md-4">
+            <label class="form-label small">{{ t.paid_by }}</label>
+            <select class="form-select form-select-sm" name="paid_by" onchange="this.form.submit()">
+                <option value="">{{ t.everyone }}</option>
+                {% for p in people %}
+                <option value="{{ p.id }}" {{ 'selected' if paid_by_filter == p.id }}>{{ p.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-2 col-md-4">
+            {% if category_filter or paid_by_filter %}
+            <a href="{{ url_for('expenses.list_expenses', month_id=month.id) }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-x-lg"></i> {{ t.clear }}
+            </a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- Expense Table (desktop) -->
+{% if expenses %}
+<div class="panel expense-table-desktop">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>{{ t.date }}</th>
+                    <th>{{ t.description }}</th>
+                    <th>{{ t.category }}</th>
+                    <th>{{ t.paid_by }}</th>
+                    <th>{{ t.split_mode }}</th>
+                    <th class="text-end">{{ t.amount }}</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for exp in expenses %}
+                <tr>
+                    <td class="text-nowrap">{{ exp.date }}</td>
+                    <td>{{ exp.description or '—' }}</td>
+                    <td>
+                        <span class="badge-type badge-{{ exp.category_type }}">{{ exp.category_name }}</span>
+                    </td>
+                    <td>{{ exp.paid_by_name }}</td>
+                    <td>
+                        {% if exp.split_mode == 'personal' %}
+                            <span class="badge-type badge-personal"><small>{{ t.personal }}</small></span>
+                        {% elif exp.split_mode == '50/50' %}
+                            <small>50/50</small>
+                        {% elif exp.split_mode == 'person1_only' %}
+                            <small>{{ people[0].name if people else 'P1' }}</small>
+                        {% elif exp.split_mode == 'person2_only' %}
+                            <small>{{ people[1].name if people|length > 1 else 'P2' }}</small>
+                        {% else %}
+                            <small>{{ exp.custom_ratio_person1|int }}/{{ (100 - exp.custom_ratio_person1)|int }}</small>
+                        {% endif %}
+                    </td>
+                    <td class="text-end fw-bold">{{ "%.2f"|format(exp.amount) }} &euro;</td>
+                    <td class="text-end text-nowrap">
+                        {% if not month.is_closed %}
+                        <a href="{{ url_for('expenses.edit_expense', month_id=month.id, expense_id=exp.id) }}"
+                           class="btn btn-outline-secondary btn-sm py-0 px-1" title="{{ t.edit }}">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <form method="POST" class="d-inline"
+                              action="{{ url_for('expenses.save_as_template', month_id=month.id, expense_id=exp.id) }}">
+                            <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-1" title="{{ t.save_as_template }}">
+                                <i class="bi bi-bookmark-plus"></i>
+                            </button>
+                        </form>
+                        <form method="POST" class="d-inline"
+                              action="{{ url_for('expenses.delete_expense', month_id=month.id, expense_id=exp.id) }}"
+                              onsubmit="return confirm('{{ t.confirm_delete_exp }}')">
+                            <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-1" title="{{ t.delete }}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Expense Cards (mobile) -->
+<div class="expense-card-mobile">
+    {% for exp in expenses %}
+    <div class="expense-card-item">
+        <div class="expense-card-top">
+            <div>
+                <strong>{{ exp.description or '—' }}</strong>
+                <div class="expense-card-meta mt-1">
+                    <span class="badge-type badge-{{ exp.category_type }}">{{ exp.category_name }}</span>
+                    <span>{{ exp.date }}</span>
+                    <span>&middot; {{ exp.paid_by_name }}</span>
+                    {% if exp.split_mode == 'personal' %}
+                        <span class="badge-type badge-personal">{{ t.personal }}</span>
+                    {% elif exp.split_mode != '50/50' %}
+                        <span>&middot;
+                            {% if exp.split_mode == 'person1_only' %}{{ people[0].name if people else 'P1' }}
+                            {% elif exp.split_mode == 'person2_only' %}{{ people[1].name if people|length > 1 else 'P2' }}
+                            {% else %}{{ exp.custom_ratio_person1|int }}/{{ (100 - exp.custom_ratio_person1)|int }}
+                            {% endif %}
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="expense-card-amount">{{ "%.2f"|format(exp.amount) }} &euro;</div>
+        </div>
+        {% if not month.is_closed %}
+        <div class="expense-card-actions">
+            <a href="{{ url_for('expenses.edit_expense', month_id=month.id, expense_id=exp.id) }}"
+               class="btn btn-outline-secondary btn-sm flex-fill">
+                <i class="bi bi-pencil"></i> {{ t.edit }}
+            </a>
+            <form method="POST" class="flex-fill"
+                  action="{{ url_for('expenses.save_as_template', month_id=month.id, expense_id=exp.id) }}">
+                <button type="submit" class="btn btn-outline-secondary btn-sm w-100">
+                    <i class="bi bi-bookmark-plus"></i> {{ t.template }}
+                </button>
+            </form>
+            <form method="POST" class="flex-fill"
+                  action="{{ url_for('expenses.delete_expense', month_id=month.id, expense_id=exp.id) }}"
+                  onsubmit="return confirm('{{ t.confirm_delete_exp }}')">
+                <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+<!-- Pagination -->
+{% if total_pages > 1 %}
+<nav class="mt-3 d-flex justify-content-center">
+    <ul class="pagination pagination-sm mb-0">
+        <li class="page-item {{ 'disabled' if page <= 1 }}">
+            <a class="page-link" href="{{ url_for('expenses.list_expenses', month_id=month.id, page=page-1, category=category_filter or '', paid_by=paid_by_filter or '') }}">
+                <i class="bi bi-chevron-left"></i>
+            </a>
+        </li>
+        {% for p in range(1, total_pages + 1) %}
+        <li class="page-item {{ 'active' if p == page }}">
+            <a class="page-link" href="{{ url_for('expenses.list_expenses', month_id=month.id, page=p, category=category_filter or '', paid_by=paid_by_filter or '') }}">{{ p }}</a>
+        </li>
+        {% endfor %}
+        <li class="page-item {{ 'disabled' if page >= total_pages }}">
+            <a class="page-link" href="{{ url_for('expenses.list_expenses', month_id=month.id, page=page+1, category=category_filter or '', paid_by=paid_by_filter or '') }}">
+                <i class="bi bi-chevron-right"></i>
+            </a>
+        </li>
+    </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<div class="panel empty-state">
+    <span class="empty-state-icon"><i class="bi bi-receipt-cutoff"></i></span>
+    <p class="empty-state-text">
+        {{ t.no_expenses_yet }}
+        {% if not month.is_closed %}
+        <br><a href="{{ url_for('expenses.add_expense', month_id=month.id) }}">{{ t.add_first_expense }}</a>
+        {% endif %}
+    </p>
+</div>
+{% endif %}
+
+<!-- Templates Section -->
+{% if templates and not month.is_closed %}
+<div class="d-flex justify-content-between align-items-center mt-5 mb-3">
+    <h2 class="section-heading mb-0"><i class="bi bi-bookmark-star"></i> {{ t.templates_title }}</h2>
+</div>
+<div class="row g-2 mb-3">
+    {% for tmpl in templates %}
+    <div class="col-6 col-md-4 col-lg-3">
+        <div class="panel p-2 d-flex flex-column h-100" style="font-size: 0.85rem;">
+            <div class="d-flex justify-content-between align-items-start mb-1">
+                <strong>{{ tmpl.description or tmpl.category_name }}</strong>
+                <span class="fw-bold">{{ "%.2f"|format(tmpl.amount) }}&euro;</span>
+            </div>
+            <div class="text-muted mb-2" style="font-size: 0.75rem;">
+                <span class="badge-type badge-{{ tmpl.category_type }}">{{ tmpl.category_name }}</span>
+                &middot; {{ tmpl.paid_by_name }}
+            </div>
+            <div class="d-flex gap-1 mt-auto">
+                <form method="POST" action="{{ url_for('expenses.use_template', month_id=month.id, template_id=tmpl.id) }}" class="flex-fill">
+                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                        <i class="bi bi-plus-lg"></i> {{ t.use }}
+                    </button>
+                </form>
+                <form method="POST" action="{{ url_for('expenses.remove_template', month_id=month.id, template_id=tmpl.id) }}"
+                      onsubmit="return confirm('{{ t.confirm_delete_tmpl }}')">
+                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Extra Income Section -->
+<div class="d-flex justify-content-between align-items-center mt-5 mb-3">
+    <h2 class="section-heading mb-0"><i class="bi bi-cash-stack"></i> {{ t.extra_income_title }}</h2>
+    {% if extra_income_total > 0 %}
+    <span class="fw-bold text-under">+{{ "%.2f"|format(extra_income_total) }} &euro;</span>
+    {% endif %}
+</div>
+
+{% if not month.is_closed %}
+<div class="panel mb-3">
+    <form method="POST" action="{{ url_for('expenses.add_extra_income', month_id=month.id) }}" class="row g-2 align-items-end">
+        <div class="col-6 col-md-3">
+            <label class="form-label small">{{ t.amount }} (&euro;)</label>
+            <input type="number" class="form-control form-control-sm" name="amount"
+                   step="0.01" min="0.01" required placeholder="0.00">
+        </div>
+        <div class="col-6 col-md-3">
+            <label class="form-label small">{{ t.received_by }}</label>
+            <select class="form-select form-select-sm" name="person_id" required>
+                {% for p in people %}
+                <option value="{{ p.id }}" {{ 'selected' if session.get('person_id') == p.id }}>{{ p.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label small">{{ t.date }}</label>
+            <input type="date" class="form-control form-control-sm" name="date" value="{{ today }}" required>
+        </div>
+        <div class="col-6 col-md-3">
+            <label class="form-label small">{{ t.description }}</label>
+            <input type="text" class="form-control form-control-sm" name="description" placeholder="{{ t.extra_desc_placeholder }}">
+        </div>
+        <div class="col-12 col-md-1">
+            <button type="submit" class="btn btn-primary btn-sm w-100">
+                <i class="bi bi-plus-lg"></i>
+            </button>
+        </div>
+    </form>
+</div>
+{% endif %}
+
+{% if extra_income %}
+<div class="panel">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>{{ t.date }}</th>
+                    <th>{{ t.description }}</th>
+                    <th>{{ t.received_by }}</th>
+                    <th class="text-end">{{ t.amount }}</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ei in extra_income %}
+                <tr>
+                    <td class="text-nowrap">{{ ei.date }}</td>
+                    <td>{{ ei.description or '—' }}</td>
+                    <td>{{ ei.person_name }}</td>
+                    <td class="text-end fw-bold text-under">+{{ "%.2f"|format(ei.amount) }} &euro;</td>
+                    <td class="text-end">
+                        {% if not month.is_closed %}
+                        <form method="POST" class="d-inline"
+                              action="{{ url_for('expenses.delete_extra_income_entry', month_id=month.id, entry_id=ei.id) }}"
+                              onsubmit="return confirm('{{ t.confirm_delete_income }}')">
+                            <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-1">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% elif month.is_closed %}
+<div class="panel text-center py-4">
+    <p class="text-muted mb-0">{{ t.no_extra_income }}</p>
+</div>
+{% endif %}
+{% endblock %}

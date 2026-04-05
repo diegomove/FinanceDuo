@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t.categories_title }} — {{ t.app_name }}{% endblock %}
+
+{% block content %}
+<nav class="breadcrumb-nav">
+    <a href="{{ url_for('month.list_months') }}">{{ t.nav_months }}</a>
+    <span class="separator">/</span>
+    <strong>{{ t.category }}</strong>
+</nav>
+<h1 class="page-heading mt-1 mb-4">{{ t.categories_title }}</h1>
+
+<!-- Add Category -->
+<div class="panel mb-4">
+    <div class="panel-header">
+        <h2 class="section-heading mb-0"><i class="bi bi-plus-circle"></i> {{ t.add_category }}</h2>
+    </div>
+    <form method="POST" action="{{ url_for('budget.add_category') }}">
+        <div class="row g-3 align-items-end">
+            <div class="col-12 col-sm-5">
+                <label class="form-label">{{ t.name }}</label>
+                <input type="text" class="form-control" name="name" required placeholder="{{ t.cat_placeholder }}">
+            </div>
+            <div class="col-8 col-sm-4">
+                <label class="form-label">{{ t.type }}</label>
+                <select class="form-select" name="type">
+                    <option value="fixed">{{ t.fixed_type }}</option>
+                    <option value="variable">{{ t.variable_type }}</option>
+                    <option value="extra" selected>{{ t.extra_type }}</option>
+                </select>
+            </div>
+            <div class="col-4 col-sm-3">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-plus-lg"></i> {{ t.add }}
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Existing Categories -->
+{% set type_plurals = {'fixed': t.fixed_plural, 'variable': t.variable_plural, 'extra': t.extra_plural} %}
+{% for type_name in ['fixed', 'variable', 'extra'] %}
+{% set type_label = type_plurals[type_name] %}
+<div class="panel mb-4">
+    <div class="panel-header">
+        <h2 class="section-heading mb-0">{{ type_label }}</h2>
+        <span class="badge-type badge-{{ type_name }}">{{ categories.get(type_name, [])|length }}</span>
+    </div>
+
+    {% if categories.get(type_name, []) %}
+    {% for cat in categories[type_name] %}
+    <div class="d-flex justify-content-between align-items-center py-2 {{ 'border-bottom' if not loop.last }}" style="border-color: var(--color-border) !important;">
+        <span class="fw-500">{{ cat.name }}</span>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary btn-sm"
+                    data-bs-toggle="modal"
+                    data-bs-target="#editModal{{ cat.id }}">
+                <i class="bi bi-pencil"></i>
+            </button>
+            <form method="POST" action="{{ url_for('budget.remove_category', cat_id=cat.id) }}"
+                  onsubmit="return confirm('{{ t.confirm_delete_cat.format(cat.name) }}')">
+                <button type="submit" class="btn btn-outline-danger btn-sm">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal fade" id="editModal{{ cat.id }}" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content" style="border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                <form method="POST" action="{{ url_for('budget.edit_category', cat_id=cat.id) }}">
+                    <div class="modal-header" style="border-color: var(--color-border);">
+                        <h5 class="modal-title section-heading">{{ t.edit_category }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">{{ t.name }}</label>
+                            <input type="text" class="form-control" name="name" value="{{ cat.name }}" required>
+                        </div>
+                        <div>
+                            <label class="form-label">{{ t.type }}</label>
+                            <select class="form-select" name="type">
+                                <option value="fixed" {{ 'selected' if cat.type == 'fixed' }}>{{ t.fixed_type }}</option>
+                                <option value="variable" {{ 'selected' if cat.type == 'variable' }}>{{ t.variable_type }}</option>
+                                <option value="extra" {{ 'selected' if cat.type == 'extra' }}>{{ t.extra_type }}</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="border-color: var(--color-border);">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ t.cancel }}</button>
+                        <button type="submit" class="btn btn-primary">{{ t.save }}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="text-muted small mb-0">{{ t.no_categories.format(type_label|lower) }}</p>
+    {% endif %}
+</div>
+{% endfor %}
+{% endblock %}

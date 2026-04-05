@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t.edit_expense if edit else t.new_expense }} — {{ display_name }}{% endblock %}
+
+{% block content %}
+<nav class="breadcrumb-nav">
+    <a href="{{ url_for('month.list_months') }}">{{ t.nav_months }}</a>
+    <span class="separator">/</span>
+    <a href="{{ url_for('month.overview', month_id=month.id) }}">{{ display_name }}</a>
+    <span class="separator">/</span>
+    <a href="{{ url_for('expenses.list_expenses', month_id=month.id) }}">{{ t.expenses_title }}</a>
+    <span class="separator">/</span>
+    <strong>{{ t.edit if edit else t.add }}</strong>
+</nav>
+<h1 class="page-heading mt-1 mb-4">{{ t.edit_expense if edit else t.new_expense }}</h1>
+
+<div class="panel" style="max-width: 600px;">
+    <form method="POST">
+        <div class="mb-3">
+            <label class="form-label" for="amount">{{ t.amount }} (&euro;)</label>
+            <input type="number" class="form-control form-control-lg" id="amount" name="amount"
+                   step="0.01" min="0.01" required
+                   value="{{ expense.amount if edit and expense else '' }}"
+                   placeholder="0.00" autofocus>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="description">{{ t.description }}</label>
+            <input type="text" class="form-control" id="description" name="description"
+                   value="{{ expense.description if edit and expense else '' }}"
+                   placeholder="{{ t.desc_placeholder }}">
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-6">
+                <label class="form-label" for="category_id">{{ t.category }}</label>
+                <select class="form-select" id="category_id" name="category_id" required>
+                    <option value="">{{ t.select }}</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}"
+                            {{ 'selected' if edit and expense and expense.category_id == cat.id }}>
+                        {{ cat.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6">
+                <label class="form-label" for="date">{{ t.date }}</label>
+                <input type="date" class="form-control" id="date" name="date" required
+                       value="{{ expense.date if edit and expense else today }}">
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="paid_by">{{ t.paid_by }}</label>
+            <div class="d-flex gap-2">
+                {% for p in people %}
+                <div class="flex-fill">
+                    <input type="radio" class="btn-check" name="paid_by" id="paid_by_{{ p.id }}"
+                           value="{{ p.id }}" autocomplete="off"
+                           {{ 'checked' if (edit and expense and expense.paid_by == p.id) or (not edit and session.get('person_id') == p.id) }}>
+                    <label class="btn btn-outline-primary w-100" for="paid_by_{{ p.id }}">
+                        {{ p.name }}
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">{{ t.split_mode }}</label>
+            <div class="d-flex flex-wrap gap-2 mb-2">
+                {% set split_labels = {
+                    '50/50': '50/50',
+                    'person1_only': t.only_person.format(people[0].name if people else 'P1'),
+                    'person2_only': t.only_person.format(people[1].name if people|length > 1 else 'P2'),
+                    'custom': t.custom,
+                    'personal': t.personal
+                } %}
+                {% for mode, label in split_labels.items() %}
+                <div>
+                    <input type="radio" class="btn-check" name="split_mode" id="split_{{ mode }}"
+                           value="{{ mode }}" autocomplete="off"
+                           {{ 'checked' if (edit and expense and expense.split_mode == mode) or (not edit and mode == '50/50') }}>
+                    <label class="btn btn-outline-secondary btn-sm" for="split_{{ mode }}">
+                        {{ label }}
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div id="customRatioWrapper" style="display: none;">
+                <label class="form-label small text-muted">{{ t.person_share_pct.format(people[0].name if people else 'P1') }}</label>
+                <div class="d-flex align-items-center gap-3">
+                    <input type="range" class="form-range flex-fill" id="customRatioSlider"
+                           min="0" max="100" step="5"
+                           value="{{ expense.custom_ratio_person1|int if edit and expense else 50 }}">
+                    <span id="ratioDisplay" class="fw-bold" style="min-width: 80px; text-align: center;">
+                        {{ expense.custom_ratio_person1|int if edit and expense else 50 }}
+                        /
+                        {{ (100 - expense.custom_ratio_person1)|int if edit and expense else 50 }}
+                    </span>
+                    <input type="hidden" name="custom_ratio_person1" id="customRatioInput"
+                           value="{{ expense.custom_ratio_person1 if edit and expense else 50 }}">
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-4">
+            <a href="{{ url_for('expenses.list_expenses', month_id=month.id) }}" class="btn btn-outline-secondary">
+                {{ t.cancel }}
+            </a>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-lg"></i> {{ t.update_expense if edit else t.add_expense }}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const splitRadios = document.querySelectorAll('input[name="split_mode"]');
+    const customWrapper = document.getElementById("customRatioWrapper");
+    const slider = document.getElementById("customRatioSlider");
+    const display = document.getElementById("ratioDisplay");
+    const hiddenInput = document.getElementById("customRatioInput");
+
+    function toggleCustom() {
+        const selected = document.querySelector('input[name="split_mode"]:checked');
+        customWrapper.style.display = selected && selected.value === "custom" ? "block" : "none";
+    }
+
+    splitRadios.forEach(r => r.addEventListener("change", toggleCustom));
+    toggleCustom();
+
+    slider.addEventListener("input", () => {
+        const val = parseInt(slider.value);
+        display.textContent = val + " / " + (100 - val);
+        hiddenInput.value = val;
+    });
+});
+</script>
+{% endblock %}
